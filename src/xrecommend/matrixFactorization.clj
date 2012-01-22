@@ -39,59 +39,30 @@
 (defn random-matrix [rows columns]
   (matrix (apply vector (take (* rows columns) (repeatedly rand))) rows))
 
-(defn calculate-Eij [mapa i j] 
-  (- (sel (:R mapa) :rows i :cols j) (mmult (sel (:P mapa) :rows i) (sel (:Q mapa) :cols j))))
-
-; e is number not matrix! need to calculate it properly
-(defn calculate-E [full-map]
-  (matrix (for [i (range 0 (count (:R full-map)))]
-                 (for [j (range 0 (count (sel (:R full-map) :rows i)))] 
-                   (if (> (sel (:R full-map) :rows i :cols j) 0)
-                     (- (sel (:R full-map) :rows i :cols j) (mmult (sel (:P full-map) :rows i) (sel (:Q full-map) :cols j))) 0)))))
+(defn calculate-Eij [R P Q i j]
+  (if (> (sel R :rows i :cols j) 0)
+  (- (sel R :rows i :cols j) (mmult (sel P :rows i) (sel Q :cols j)))
+  0))
 
 
-;P calculating finished!
-; add calculating
-(defn calculate-P [full-map]
-  (reduce plus (map matrix 
-                 (for [j (range 0 (count (sel (:R full-map) :rows 0)))]
-                   (for [i (range 0 (count (:R full-map)))]
-                     (for [k (range 0 (:K full-map))]
-                       (if (> (sel (:R full-map) :rows i :cols j) 0)
-                         (+ (sel (:P full-map) :rows i :cols k) (* (:alpha full-map) (- (* 2 (calculate-Eij full-map i j) (sel (:Q full-map) :rows k :cols j)) (* (:beta full-map) (sel (:P full-map) :rows i :cols k)))))
-                         0)))))))
-
-
-;Q calculating finished
-(defn calculate-Q [full-map]
-  (trans (reduce plus (map matrix
-                      (for [i (range 0 (count (:R full-map)))]
-                        (for [j (range 0 (count (sel (:R full-map) :rows i)))]
-                          (for [k (range 0 (:K full-map))]
-                            (if (> (sel (:R full-map) :rows i :cols j) 0)
-                              (+ (sel (:Q full-map) :rows k :cols j ) (* (:alpha full-map) (- (* 2 (calculate-Eij full-map i j) (sel (:P full-map) :rows i :cols k)) (* (:beta full-map) (sel (:Q full-map) :rows k :cols j)))))
-                              0))))))))
-
-;init values for calculating
-(def R (matrix [[5,3,0,1],
-     [4,0,0,1],
-     [1,1,0,5],
-     [1,0,0,4],
-     [0,1,5,4]]))
-
-
-; example: 
-; 
 (defn init-values [alpha beta1 K rows columns R] 
-  (def mapa {})
-  (assoc mapa :alpha alpha :beta beta1 :K K :P (random-matrix K rows) :Q (random-matrix columns K) :E (matrix 0 rows columns) :R R))
+  (assoc {} :alpha alpha :beta beta1 :K K :P (random-matrix K rows) :Q (random-matrix columns K) :E (matrix 0 rows columns) :R R))
 
-(def mapa (init-values 0.0002 0.02 2 5 4 R)) 
+(defn get-Eij [R P Q] 
+  (matrix (for [i (range 0 (count R))] 
+  (for [j (range 0 (count (trans R)))] 
+  (calculate-Eij R P Q i j)))))
+
+(defn calculate-P [mapa Eij] 
+  (plus (:P mapa) (mult (:alpha mapa) (minus (mult 2 (mmult Eij (trans (:Q mapa)))) (mult (:beta mapa) (:P mapa))))))
+
+(defn calculate-Q [mapa Eij]
+  (plus (:Q mapa) (mult (:alpha mapa) (minus (mult 2 (trans (mmult (trans Eij) (:P mapa)))) (mult (:beta mapa) (:Q mapa))))))
 
 ;calculating small "e"
-(defn count-eB [P Q beta1] 
+(defn count-eB [P Q beta1 K] 
   (reduce (fn [res row] 
-          (* (/ beta1 2) (+ (pow (sum (sel (trans P) :rows row)) 2) (pow (sum (sel Q :rows row)) 2)))) (range 0 (:K mapa))))
+          (* (/ beta1 2) (+ (pow (sum (sel (trans P) :rows row)) 2) (pow (sum (sel Q :rows row)) 2)))) (range 0 K)))
 
 ;update result, method for calculating update for one step
 (defn update-result [mapa]
@@ -99,20 +70,30 @@
         Q (:Q mapa)
         E (:E mapa)
         alpha (:alpha mapa)
-        beta1 (:beta mapa)
-        R (:R mapa)]
-    (assoc mapa :P (calculate-P mapa) 
-                :Q (calculate-Q mapa) 
-                :E (plus E (pow (minus R (mmult P Q))) (matrix (count-eB P Q beta1) (count (sel R :cols 0)) (count (sel R :rows 0)))))))
-;final method calculate-all 
-;calculates final value for R' matrix
+        beta (:beta mapa)
+        R (:R mapa)
+        K (:K mapa)
+        Eij (get-Eij R P Q)
+        eB (count-eB P Q beta K)]
+    (assoc mapa :P (calculate-P mapa Eij) 
+                :Q (calculate-Q mapa Eij) 
+                :E (plus E (pow (minus R (mmult P Q))) (matrix eB (count (sel R :cols 0)) (count (sel R :rows 0)))))))
+
+;final method calculate-all
+;calculates final value for R~ matrix
+(def R (matrix [[5,3,0,1],
+     [4,0,0,1],
+     [1,1,0,5],
+     [1,0,0,4],
+     [0,1,5,4]]))
+
+(def mapa (init-values 0.0002 0.02 2 5 4 R))
+
 (defn calculate-all [mapa step]
   (if (zero? step)
     mapa
     (recur (update-result mapa) (dec step))))
 
-; Not getting good results!!!! CHECK THIS AS SOON AS POSIBLE!!!!!
-; example (calculate-all mapa 60)
-; TODO check why calculating does not work as expected!
-; HINT P and Q calculating issue!!!
 
+(def result (calculate-all mapa 5000))
+(mmult (:P result) (:Q result))

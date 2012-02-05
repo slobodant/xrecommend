@@ -63,3 +63,11 @@
 
 (def result (calculate-all mapa 5000))
 (mmult (:P result) (:Q result))
+
+(def item (read-dataset "data/u.item" :delim \|))
+(def user (read-dataset "data/u.user" :delim \|))
+(def rating (read-dataset "data/u.data" :delim \tab))
+
+(map :col0 (:rows item)) ; all items
+(map :col0 (:rows user)) ; all users
+

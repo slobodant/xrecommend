@@ -1,33 +1,7 @@
 (ns xrecommend.matrixFactorization
   (:gen-class)
-  (:use (incanter core stats charts io datasets)))
-;def matrix_factorization(R, P, Q, K, steps=5000, alpha=0.0002, beta=0.02):
-;    Q = Q.T
-;    for step in xrange(steps):
-;    // DONE
-;        for i in xrange(len(R)):
-;            for j in xrange(len(R[i])):
-;                if R[i][j] > 0:
-;                    eij = R[i][j] - numpy.dot(P[i,:],Q[:,j])
-;                    for k in xrange(K):
-;                        P[i][k] = P[i][k] + alpha * (2 * eij * Q[k][j] - beta * P[i][k])
-;                        Q[k][j] = Q[k][j] + alpha * (2 * eij * P[i][k] - beta * Q[k][j])
-;        eR = numpy.dot(P,Q)
-;     // END DONE
-;     // TODO:
-;        e = 0
-;        for i in xrange(len(R)):
-;            for j in xrange(len(R[i])):
-;                if R[i][j] > 0:
-;                    e = e + pow(R[i][j] - numpy.dot(P[i,:],Q[:,j]), 2)
-;                    for k in xrange(K):
-;                        e = e + (beta/2) * (pow(P[i][k],2) + pow(Q[k][j],2))
-;       if e < 0.001:
-;           break            
-;return P, Q.T
-
-
-; calculate P, Q and E probably recursive
+  (:use (incanter core stats charts io datasets))
+  (:use xrecommend.parser))
 
 ; recursion example
 (defn countdown [result x] 
@@ -81,13 +55,10 @@
 
 ;final method calculate-all
 ;calculates final value for R~ matrix
-(def R (matrix [[5,3,0,1],
-     [4,0,0,1],
-     [1,1,0,5],
-     [1,0,0,4],
-     [0,1,5,4]]))
-
-(def mapa (init-values 0.0002 0.02 2 5 4 R))
+(def all-movies (get-all-movies critics))
+(def all-users (get-users critics))
+(def R (create-R-matrix critics all-movies all-users))
+(def mapa (init-values 0.0002 0.02 2 (count (sel R :cols 0)) (count (sel R :rows 0) ) R))
 
 (defn calculate-all [mapa step]
   (if (zero? step)
@@ -96,4 +67,13 @@
 
 
 (def result (calculate-all mapa 5000))
-(mmult (:P result) (:Q result))
+(def R-prim-matrix (mmult (:P result) (:Q result)))
+
+(defn get-movies-recommendation [user all-movies all-users matrix] 
+   (sort-by #(val %) > (reduce (fn [result movie] (assoc result movie (nth (sel matrix :rows (.indexOf all-users user)) (.indexOf all-movies movie)))) {} all-movies)))
+
+(defn get-recommendations [user critics-map all-movies all-users matrix]
+  (reduce (fn [mapa entry] (dissoc mapa (key entry))) (get-recommended-movies user all-movies all-users R-prim-matrix) (critics-map user)))
+  
+ 
+

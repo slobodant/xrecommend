@@ -61,8 +61,8 @@
 (defn get-key-vals [string-list]
   (reduce assoc-key-val {} string-list))
 
-(def movies (line-seq (reader "data/u.item")))
-(def data (line-seq (reader "data/u.data")))
+(def movies (line-seq (reader "data/test.item")))
+(def data (line-seq (reader "data/test.data")))
 
 movies
 
@@ -96,6 +96,6 @@ movies
 (defn get-key-vals-data-2 [string-list]
   (reduce assoc-key-val-data-2 {} string-list))
 
-;(def critics-map (get-key-vals-data-2 data))
+(def critics-map (get-key-vals-data-2 data))
 
 

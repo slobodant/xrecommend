@@ -20,7 +20,7 @@
 
 
 (defn init-values [alpha beta1 K rows columns R] 
-  (assoc {} :alpha alpha :beta beta1 :K K :P (random-matrix K rows) :Q (random-matrix columns K) :E (matrix 0 rows columns) :R R))
+  (assoc {} :alpha alpha :beta beta1 :K K :P (random-matrix K rows) :Q (random-matrix columns K) :E [] :R R))
 
 (defn get-Eij [R P Q] 
   (matrix (for [i (range 0 (count R))] 
@@ -38,6 +38,22 @@
   (reduce (fn [res row] 
           (* (/ beta1 2) (+ (pow (sum (sel (trans P) :rows row)) 2) (pow (sum (sel Q :rows row)) 2)))) (range 0 K)))
 
+(defn count-e-beta1 [P Q beta K]
+  (for [k (range 0 K)]
+    (mult beta (mmult (sel P :rows k) (sel Q :cols k)))))
+
+;calculate difference E
+(defn calculate-error1 [R P Q beta alpha K]
+  (sum (map sum 
+         (for [i (range 0 (count R))] 
+           (for [j (range 0 (count (trans R)))]
+             (if (> (sel R :rows i :cols j) 0)
+               ;calculation e = e + pow(R[i][j] - numpy.dot(P[i,:],Q[:,j]), 2) + (beta/2) * (pow(P[i][k],2) + pow(Q[k][j],2)) 
+               (+ (pow (- (sel R :rows i :cols j) (mmult (sel P :rows i) (sel Q :cols j))) 2) (sum (count-e-beta1 P Q beta K)))
+               0))))))
+
+;(+ (pow (- (sel R :rows i :cols j) (mmult (sel P :rows i) (sel Q :cols j))) 2) (sum (count-e-beta1 P Q beta K)))
+
 ;update result, method for calculating update for one step
 (defn update-result [mapa]
   (let [P (:P mapa)
@@ -47,33 +63,36 @@
         beta (:beta mapa)
         R (:R mapa)
         K (:K mapa)
-        Eij (get-Eij R P Q)
-        eB (count-eB P Q beta K)]
+        Eij (get-Eij R P Q)]
+    
     (assoc mapa :P (calculate-P mapa Eij) 
                 :Q (calculate-Q mapa Eij) 
-                :E (plus E (pow (minus R (mmult P Q))) (matrix eB (count (sel R :cols 0)) (count (sel R :rows 0)))))))
+                :E (conj E (calculate-error1 R P Q beta alpha K)))))
 
 ;final method calculate-all
 ;calculates final value for R~ matrix
-(def all-movies (get-all-movies critics))
-(def all-users (get-users critics))
-(def R (create-R-matrix critics all-movies all-users))
-(def mapa (init-values 0.0002 0.02 2 (count (sel R :cols 0)) (count (sel R :rows 0) ) R))
-
 (defn calculate-all [mapa step]
   (if (zero? step)
     mapa
     (recur (update-result mapa) (dec step))))
 
-
-(def result (calculate-all mapa 5000))
-(def R-prim-matrix (mmult (:P result) (:Q result)))
-
 (defn get-movies-recommendation [user all-movies all-users matrix] 
-   (sort-by #(val %) > (reduce (fn [result movie] (assoc result movie (nth (sel matrix :rows (.indexOf all-users user)) (.indexOf all-movies movie)))) {} all-movies)))
+   (reduce (fn [result movie] (assoc result movie (nth (sel matrix :rows (.indexOf all-users user)) (.indexOf all-movies movie)))) {} all-movies))
 
 (defn get-recommendations [user critics-map all-movies all-users matrix]
-  (reduce (fn [mapa entry] (dissoc mapa (key entry))) (get-recommended-movies user all-movies all-users R-prim-matrix) (critics-map user)))
-  
- 
+  (sort-by #(val %) > (reduce (fn [mapa entry] (dissoc mapa (key entry))) (get-movies-recommendation user all-movies all-users matrix) (critics-map user))))
 
+(defn matrix-factorization [critics-map user K] 
+  (let [all-movies (get-all-movies critics-map)
+        all-users (get-users critics-map)
+        R (create-R-matrix critics-map all-movies all-users)
+        mapa (init-values 0.0002 0.02 K (count (sel R :cols 0)) (count (sel R :rows 0) ) R)
+        result (calculate-all mapa 5000)
+        R-prim-matrix (mmult (:P result) (:Q result))]
+  (get-recommendations user critics-map all-movies all-users R-prim-matrix)))
+
+
+(defn error-vals [error-list] (reduce (fn [mapa entry] (conj mapa entry)) [] error-list))
+(defn error-keys [error-list] (reduce (fn [mapa entry] (conj mapa (.toString (.indexOf error-list entry)))) [] error-list))
+
+(view (line-chart (error-keys (:E result)) (error-vals (:E result)) :title "Matrix Factorization Error Chart" :y-label "Error Value" :x-label "Cycle"  ))

@@ -97,12 +97,9 @@
 (defn calculate-final-score-movies [mapa skalar]
   (reduce (fn [result entry] (assoc result (key entry) (* skalar (val entry)))) {} mapa))
 
-(defn pomocna1 [result entry]
-  (assoc result (key entry) (calculate-final-score-movies (critics (key entry)) (val entry))))
-
 ;MULTIPLYING RESULTS
-(defn multiply-result [final-result-map]
-  (reduce pomocna1 {} final-result-map))
+(defn multiply-result [final-result-map critics-map]
+  (reduce (fn [result entry] (assoc result (key entry) (calculate-final-score-movies (critics-map (key entry)) (val entry)))) {} final-result-map))
 
 ;SUMMARING TWO MAPS AND ITS ALL VALUES
 (defn sum-two-map-values [mapa1 mapa2]
@@ -136,14 +133,14 @@
 ;(take 10 (sort-by #(val %) > (filter-non-user-results (critics-map "43"))))
 
 
-(defn calculate-dist-for-user-final [username number number-of-users algorithm]
-  (def final-result-map (get-n-results (final-map-for-user username critics algorithm) number-of-users))
-  (def multipliedmap (multiply-result final-result-map))
+(defn calculate-dist-for-user-final [username number number-of-users algorithm critics-map]
+  (def final-result-map (get-n-results (final-map-for-user username critics-map algorithm) number-of-users))
+  (def multipliedmap (multiply-result final-result-map critics-map))
   (def all-results (map val multipliedmap))
   (def all-movies-results (reduce sum-two-map-values {} all-results))
   (take number (sort-by #(val %) > (reduce (fn [result user-critics-entry]
-    (dissoc result (key user-critics-entry))) all-movies-results (critics username)))))
+    (dissoc result (key user-critics-entry))) all-movies-results (critics-map username)))))
 
-(def pearson-result (calculate-dist-for-user-final "Toby" 10 500 "pearson"))
-(def eucledian-result (calculate-dist-for-user-final "Toby" 10 500 "eucledian"))
+(def pearson-result (calculate-dist-for-user-final "Toby" 10 500 "pearson" critics))
+(def eucledian-result (calculate-dist-for-user-final "Toby" 10 500 "eucledian" critics))
 

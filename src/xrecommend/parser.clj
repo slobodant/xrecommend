@@ -41,10 +41,10 @@
 (reduce (fn [result entry] (update-list result (get-movies-for-user entry critics-map))) () (get-users critics-map)))
 
 (defn row-user-critics [critics-user all-movies]
-  (reduce (fn [list movie] 
+  (reduce (fn [lista movie] 
           (if (contains? critics-user movie) 
-            (conj list (critics-user movie)) 
-            (conj list 0))) () all-movies))
+            (conj lista (critics-user movie)) 
+            (conj lista 0))) [] all-movies))
 
 
 (defn create-R-matrix [critics-map all-movies all-users]

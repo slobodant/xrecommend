@@ -95,4 +95,4 @@
 (defn error-vals [error-list] (reduce (fn [mapa entry] (conj mapa entry)) [] error-list))
 (defn error-keys [error-list] (reduce (fn [mapa entry] (conj mapa (.toString (.indexOf error-list entry)))) [] error-list))
 
-(view (line-chart (error-keys (:E result)) (error-vals (:E result)) :title "Matrix Factorization Error Chart" :y-label "Error Value" :x-label "Cycle"  ))
+;(view (line-chart (error-keys (:E result)) (error-vals (:E result)) :title "Matrix Factorization Error Chart" :y-label "Error Value" :x-label "Cycle"  ))
